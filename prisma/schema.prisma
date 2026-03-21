@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id               String       @id @default(uuid())
+  nombre           String
+  email            String       @unique
+  telefono         String?
+  rol              String       // PROVEEDOR, CLIENTE, SOLO_OPERADOR
+  claseLicencia    String?      // e.g. Clase D, A4, etc.
+  poseeMaquinaria  Boolean      @default(true)
+  passwordHash     String       @default("") // Para demo
+  regionOperacion  String?
+  createdAt        DateTime     @default(now())
+  
+  maquinarias      Machinery[]
+}
+
+model Machinery {
+  id               String       @id @default(uuid())
+  proveedorId      String
+  proveedor        User         @relation(fields: [proveedorId], references: [id])
+  tipoMaquinaria   String
+  marca            String
+  modelo           String
+  year             Int
+  condicion        String       // NUEVA, EXCELENTE, BUENA, REGULAR
+  fotoUrl          String?
+  tonelajeCapacidad String?
+  patente          String?
+  descripcion      String?
+  
+  publicaciones    Listing[]
+}
+
+model Listing {
+  id               String       @id @default(uuid())
+  maquinariaId     String?
+  maquinaria       Machinery?   @relation(fields: [maquinariaId], references: [id], onDelete: SetNull)
+  tipoServicio     String       // SOLO_ARRIENDO_MAQUINA, ARRIENDO_CON_OPERADOR, SOLO_SERVICIO_OPERADOR
+  regionDisponible String
+  ciudadDisponible String
+  precioReferencial Float?
+  estado           String       @default("ACTIVO")
+  
+  disponibilidades Availability[]
+}
+
+model Availability {
+  id               String       @id @default(uuid())
+  publicacionId    String
+  publicacion      Listing      @relation(fields: [publicacionId], references: [id], onDelete: Cascade)
+  fechaInicio      DateTime
+  fechaFin         DateTime
+  estado           String       // DISPONIBLE, RESERVADO, EN_MANTENCION
+}
