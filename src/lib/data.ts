@@ -946,3 +946,52 @@ export const mockListings = [
     },
   }
 ];
+
+export type UserRole = "ADMIN" | "OPERADOR" | "CONTRATISTA";
+export type UserStatus = "ACTIVO" | "SUSPENDIDO";
+
+export interface MockUser {
+  id: string;
+  nombre: string;
+  email: string;
+  telefono: string;
+  rol: UserRole;
+  estado: UserStatus;
+  fechaRegistro: string;
+  claseLicencia?: string;
+  poseeMaquinaria?: boolean;
+  empresa?: string;
+}
+
+export const mockUsers: MockUser[] = [
+  { id: "u1", nombre: "Admin Principal", email: "admin@maqconnect.cl", telefono: "+56 9 1111 1111", rol: "ADMIN", estado: "ACTIVO", fechaRegistro: "2024-01-15" },
+  { id: "u2", nombre: "Pedro Rojas", email: "pedro.rojas@email.cl", telefono: "+56 9 2222 2222", rol: "OPERADOR", estado: "ACTIVO", fechaRegistro: "2024-03-10", claseLicencia: "Clase D", poseeMaquinaria: true },
+  { id: "u3", nombre: "Juan Pérez", email: "juan.perez@email.cl", telefono: "+56 9 3333 3333", rol: "OPERADOR", estado: "ACTIVO", fechaRegistro: "2024-04-22", claseLicencia: "Clase D", poseeMaquinaria: true },
+  { id: "u4", nombre: "Diego Soto", email: "diego.soto@email.cl", telefono: "+56 9 4444 4444", rol: "OPERADOR", estado: "SUSPENDIDO", fechaRegistro: "2024-05-05", claseLicencia: "Clase D", poseeMaquinaria: true },
+  { id: "u5", nombre: "Carlos Sanhueza", email: "carlos.sanhueza@email.cl", telefono: "+56 9 5555 5555", rol: "OPERADOR", estado: "ACTIVO", fechaRegistro: "2024-06-18", claseLicencia: "Clase D", poseeMaquinaria: false },
+  { id: "u6", nombre: "Constructora Andes SpA", email: "contacto@constructoraandes.cl", telefono: "+56 2 6666 6666", rol: "CONTRATISTA", estado: "ACTIVO", fechaRegistro: "2024-02-28", empresa: "Constructora Andes SpA" },
+  { id: "u7", nombre: "Minera del Norte Ltda.", email: "operaciones@mineranorte.cl", telefono: "+56 2 7777 7777", rol: "CONTRATISTA", estado: "ACTIVO", fechaRegistro: "2024-07-01", empresa: "Minera del Norte Ltda." },
+  { id: "u8", nombre: "Miguel Tapia", email: "miguel.tapia@email.cl", telefono: "+56 9 8888 8888", rol: "OPERADOR", estado: "ACTIVO", fechaRegistro: "2024-08-12", claseLicencia: "Clase D", poseeMaquinaria: true },
+  { id: "u9", nombre: "Andrés Silva", email: "andres.silva@email.cl", telefono: "+56 9 9999 9999", rol: "OPERADOR", estado: "ACTIVO", fechaRegistro: "2024-09-03", claseLicencia: "Clase D", poseeMaquinaria: true },
+  { id: "u10", nombre: "Inmobiliaria Pacífico SA", email: "info@inmopacifico.cl", telefono: "+56 2 1010 1010", rol: "CONTRATISTA", estado: "SUSPENDIDO", fechaRegistro: "2024-10-15", empresa: "Inmobiliaria Pacífico SA" },
+  { id: "u11", nombre: "Luis Martínez", email: "luis.martinez@email.cl", telefono: "+56 9 1212 1212", rol: "OPERADOR", estado: "ACTIVO", fechaRegistro: "2025-01-08", claseLicencia: "Clase D", poseeMaquinaria: true },
+  { id: "u12", nombre: "Fernando Gómez", email: "fernando.gomez@email.cl", telefono: "+56 9 1313 1313", rol: "OPERADOR", estado: "ACTIVO", fechaRegistro: "2025-02-20", claseLicencia: "Clase D", poseeMaquinaria: true },
+];
+
+export interface MockMessage {
+  id: string;
+  remitenteId: string;
+  destinatarioId: string;
+  asunto: string;
+  contenido: string;
+  fecha: string;
+  leido: boolean;
+}
+
+export const mockMessages: MockMessage[] = [
+  { id: "m1", remitenteId: "u1", destinatarioId: "u4", asunto: "Cuenta suspendida — Documentación pendiente", contenido: "Estimado Diego, su cuenta ha sido suspendida por falta de documentación vigente. Por favor envíe su licencia actualizada para reactivar su perfil.", fecha: "2026-03-15T10:30:00", leido: true },
+  { id: "m2", remitenteId: "u1", destinatarioId: "u2", asunto: "Verificación de maquinaria", contenido: "Estimado Pedro, necesitamos verificar la información de su maquinaria M-2000. ¿Podría proporcionar fotos actualizadas?", fecha: "2026-03-18T14:00:00", leido: false },
+  { id: "m3", remitenteId: "u1", destinatarioId: "u6", asunto: "Bienvenida a MaqConnect", contenido: "Bienvenidos a MaqConnect, Constructora Andes. Cualquier duda sobre cómo publicar solicitudes de arriendo, no dude en contactarnos.", fecha: "2026-03-10T09:00:00", leido: true },
+  { id: "m4", remitenteId: "u1", destinatarioId: "u10", asunto: "Cuenta suspendida — Pago pendiente", contenido: "Estimada Inmobiliaria Pacífico, su cuenta ha sido suspendida por un pago pendiente. Regularice su situación para continuar usando la plataforma.", fecha: "2026-03-20T11:15:00", leido: false },
+  { id: "m5", remitenteId: "u1", destinatarioId: "u3", asunto: "Actualización de perfil requerida", contenido: "Estimado Juan, su perfil necesita actualización de datos de contacto. Por favor revise su información.", fecha: "2026-03-19T16:45:00", leido: true },
+];

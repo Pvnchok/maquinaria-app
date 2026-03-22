@@ -37,9 +37,9 @@ export default function Footer() {
           <div>
             <h3 style={{ fontSize: '0.85rem', fontWeight: '700', marginBottom: '1.5rem', letterSpacing: '0.05em' }}>NAVEGA</h3>
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <li><a href="#" style={{ color: '#cbd5e1', textDecoration: 'none', fontSize: '0.9rem', transition: 'color 0.2s' }}>Maquinaria Pesada</a></li>
-              <li><a href="#" style={{ color: '#cbd5e1', textDecoration: 'none', fontSize: '0.9rem', transition: 'color 0.2s' }}>Operadores</a></li>
-              <li><a href="#" style={{ color: '#cbd5e1', textDecoration: 'none', fontSize: '0.9rem', transition: 'color 0.2s' }}>Arriendo con Operador</a></li>
+              <li><a href="/" style={{ color: '#cbd5e1', textDecoration: 'none', fontSize: '0.9rem', transition: 'color 0.2s' }}>Maquinaria Pesada</a></li>
+              <li><a href="/operador" style={{ color: '#cbd5e1', textDecoration: 'none', fontSize: '0.9rem', transition: 'color 0.2s' }}>Panel Operador</a></li>
+              <li><a href="/admin" style={{ color: '#cbd5e1', textDecoration: 'none', fontSize: '0.9rem', transition: 'color 0.2s' }}>Panel Admin</a></li>
               <li><a href="#" style={{ color: '#cbd5e1', textDecoration: 'none', fontSize: '0.9rem', transition: 'color 0.2s' }}>Servicios</a></li>
             </ul>
           </div>
