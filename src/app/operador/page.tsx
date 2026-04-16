@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { mockListings, mockUsers, mockOperatorAvailability } from "@/lib/data";
 import Link from "next/link";
 
@@ -37,19 +37,23 @@ export default function OperadorDashboard() {
   const [savingPerfil, setSavingPerfil] = useState(false);
   const [savingMaq, setSavingMaq] = useState(false);
   const [deletingMaqId, setDeletingMaqId] = useState<string | null>(null);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notification, setNotification] = useState<Notification | null>(null);
+  const notifTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // --- NOTIFICATIONS ---
   const addNotification = useCallback((type: "success" | "error", message: string) => {
+    // Cancel any pending auto-dismiss before replacing the notification
+    if (notifTimerRef.current) clearTimeout(notifTimerRef.current);
     const id = `notif-${Date.now()}`;
-    setNotifications(prev => [...prev, { id, type, message }]);
-    setTimeout(() => {
-      setNotifications(prev => prev.filter(n => n.id !== id));
-    }, 4000);
+    setNotification({ id, type, message });
+    notifTimerRef.current = setTimeout(() => {
+      setNotification(null);
+    }, 3000);
   }, []);
 
-  const dismissNotification = useCallback((id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
+  const dismissNotification = useCallback(() => {
+    if (notifTimerRef.current) clearTimeout(notifTimerRef.current);
+    setNotification(null);
   }, []);
 
   // Profile
@@ -179,17 +183,18 @@ export default function OperadorDashboard() {
   });
 
   const toggleDia = (dateStr: string) => {
+    // Read current state first, then update — avoids calling side-effects inside updater
+    const wasAvailable = diasLibres.has(dateStr);
     setDiasLibres(prev => {
       const next = new Set(prev);
-      const wasAvailable = next.has(dateStr);
       if (wasAvailable) {
         next.delete(dateStr);
       } else {
         next.add(dateStr);
       }
-      addNotification("success", wasAvailable ? "Día marcado como no disponible." : "Día marcado como disponible.");
       return next;
     });
+    addNotification("success", wasAvailable ? "Día marcado como no disponible." : "Día marcado como disponible.");
   };
 
   const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
@@ -265,19 +270,18 @@ export default function OperadorDashboard() {
 
   return (
     <div className="admin-layout">
-      {/* Notifications */}
-      <div className="notification-container">
-        {notifications.map(notif => (
+      {/* Single Notification Toast */}
+      {notification && (
+        <div className="notification-container">
           <div
-            key={notif.id}
-            className={`notification notification-${notif.type}`}
-            onClick={() => dismissNotification(notif.id)}
+            className={`notification notification-${notification.type}`}
+            onClick={dismissNotification}
           >
-            <span className="notification-icon">{notif.type === "success" ? "\u2713" : "\u2715"}</span>
-            <span className="notification-message">{notif.message}</span>
+            <span className="notification-icon">{notification.type === "success" ? "\u2713" : "\u2715"}</span>
+            <span className="notification-message">{notification.message}</span>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
 
       {/* Sidebar */}
       <aside className="admin-sidebar glass-panel" style={{ borderRadius: '16px 0 0 16px' }}>
