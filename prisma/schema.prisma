@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = "file:./dev.db"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -15,7 +15,7 @@ model User {
   rol              String       // PROVEEDOR, CLIENTE, SOLO_OPERADOR
   claseLicencia    String?      // e.g. Clase D, A4, etc.
   poseeMaquinaria  Boolean      @default(true)
-  passwordHash     String       @default("") // Para demo
+  passwordHash     String       // Hashed password (bcrypt)
   regionOperacion  String?
   createdAt        DateTime     @default(now())
   

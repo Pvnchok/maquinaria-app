@@ -1,4 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
+const bcrypt = require('bcryptjs');
 const prisma = new PrismaClient();
 
 async function main() {
@@ -6,6 +7,8 @@ async function main() {
   await prisma.listing.deleteMany()
   await prisma.machinery.deleteMany()
   await prisma.user.deleteMany()
+
+  const hashedPassword = await bcrypt.hash('demo123', 12);
 
   const op1 = await prisma.user.create({
     data: {
@@ -16,7 +19,7 @@ async function main() {
       claseLicencia: 'Clase D',
       poseeMaquinaria: false,
       regionOperacion: 'Región Metropolitana',
-      passwordHash: 'demo123'
+      passwordHash: hashedPassword
     }
   })
 
@@ -29,7 +32,7 @@ async function main() {
       claseLicencia: null,
       poseeMaquinaria: true,
       regionOperacion: 'Región del Biobío',
-      passwordHash: 'demo123',
+      passwordHash: hashedPassword,
       
       maquinarias: {
         create: [

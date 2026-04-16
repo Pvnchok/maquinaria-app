@@ -131,18 +131,26 @@ export default function OperadorDashboard() {
       addNotification("error", "Tipo de maquinaria y marca son campos obligatorios.");
       return;
     }
+    if (maqForm.marca.length > 100 || maqForm.modelo.length > 100) {
+      addNotification("error", "Marca o modelo exceden el largo máximo permitido.");
+      return;
+    }
+    if (maqForm.year < 1900 || maqForm.year > new Date().getFullYear() + 1) {
+      addNotification("error", "Año fuera de rango válido.");
+      return;
+    }
     setSavingMaq(true);
     try {
       if (editingMaqId) {
         setMaquinas(prev => prev.map(m => m.id === editingMaqId ? { ...m, ...maqForm } : m));
-        addNotification("success", `M\u00e1quina "${maqForm.tipoMaquinaria}" actualizada correctamente.`);
+        addNotification("success", `Máquina "${maqForm.tipoMaquinaria}" actualizada correctamente.`);
       } else {
         setMaquinas(prev => [...prev, { id: `maq-${Date.now()}`, ...maqForm }]);
-        addNotification("success", `M\u00e1quina "${maqForm.tipoMaquinaria}" agregada correctamente.`);
+        addNotification("success", `Máquina "${maqForm.tipoMaquinaria}" agregada correctamente.`);
       }
       setShowMaqModal(false);
     } catch {
-      addNotification("error", "Error al guardar la m\u00e1quina. Intente nuevamente.");
+      addNotification("error", "Error al guardar la máquina. Intente nuevamente.");
     } finally {
       setSavingMaq(false);
     }
