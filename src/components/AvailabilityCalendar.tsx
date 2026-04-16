@@ -63,7 +63,7 @@ export default function AvailabilityCalendar({ diasLibres, operadorNombre }: Ava
           const isAvailable = diasSet.has(dateStr);
           const today = new Date();
           const isToday = today.getFullYear() === month.year && today.getMonth() === month.month && today.getDate() === day;
-          const isPast = new Date(dateStr) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
+          const isPast = new Date(month.year, month.month, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
           return (
             <div
               key={dateStr}

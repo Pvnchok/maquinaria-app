@@ -476,7 +476,7 @@ export default function OperadorDashboard() {
                   const isAvailable = diasLibres.has(dateStr);
                   const today = new Date();
                   const isToday = today.getFullYear() === calendarMonth.year && today.getMonth() === calendarMonth.month && today.getDate() === day;
-                  const isPast = new Date(dateStr) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                  const isPast = new Date(calendarMonth.year, calendarMonth.month, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
                   return (
                     <button
                       key={dateStr}
