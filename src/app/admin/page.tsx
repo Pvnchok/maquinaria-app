@@ -102,9 +102,23 @@ export default function AdminPanel() {
     setShowUserModal(true);
   };
 
+  const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
   const saveUser = async () => {
     if (!userForm.nombre || !userForm.email) {
       addNotification("error", "Nombre y email son campos obligatorios.");
+      return;
+    }
+    if (userForm.nombre.length > 100 || userForm.email.length > 254) {
+      addNotification("error", "Nombre o email exceden el largo máximo permitido.");
+      return;
+    }
+    if (!isValidEmail(userForm.email)) {
+      addNotification("error", "Formato de email inválido.");
+      return;
+    }
+    if (userForm.telefono && userForm.telefono.length > 20) {
+      addNotification("error", "Teléfono excede el largo máximo permitido.");
       return;
     }
     setSavingUser(true);
@@ -167,6 +181,10 @@ export default function AdminPanel() {
   const sendMessage = async () => {
     if (!msgForm.destinatarioId || !msgForm.asunto || !msgForm.contenido) {
       addNotification("error", "Todos los campos del mensaje son obligatorios.");
+      return;
+    }
+    if (msgForm.asunto.length > 200 || msgForm.contenido.length > 5000) {
+      addNotification("error", "Asunto o contenido exceden el largo máximo permitido.");
       return;
     }
     setSendingMessage(true);

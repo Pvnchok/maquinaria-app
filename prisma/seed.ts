@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
@@ -8,6 +9,8 @@ async function main() {
   await prisma.listing.deleteMany()
   await prisma.machinery.deleteMany()
   await prisma.user.deleteMany()
+
+  const hashedPassword = await bcrypt.hash('demo123', 12);
 
   // 1. Crear un operador sin maquinaria
   const op1 = await prisma.user.create({
@@ -19,6 +22,7 @@ async function main() {
       claseLicencia: 'Clase D',
       poseeMaquinaria: false,
       regionOperacion: 'Región Metropolitana',
+      passwordHash: hashedPassword,
     }
   })
 
@@ -32,6 +36,7 @@ async function main() {
       claseLicencia: null, // Es empresa
       poseeMaquinaria: true,
       regionOperacion: 'Región del Biobío',
+      passwordHash: hashedPassword,
       
       maquinarias: {
         create: [
