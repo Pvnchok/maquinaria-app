@@ -181,14 +181,15 @@ export default function OperadorDashboard() {
   const toggleDia = (dateStr: string) => {
     setDiasLibres(prev => {
       const next = new Set(prev);
-      if (next.has(dateStr)) {
+      const wasAvailable = next.has(dateStr);
+      if (wasAvailable) {
         next.delete(dateStr);
       } else {
         next.add(dateStr);
       }
+      addNotification("success", wasAvailable ? "Día marcado como no disponible." : "Día marcado como disponible.");
       return next;
     });
-    addNotification("success", diasLibres.has(dateStr) ? "Día marcado como no disponible." : "Día marcado como disponible.");
   };
 
   const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
