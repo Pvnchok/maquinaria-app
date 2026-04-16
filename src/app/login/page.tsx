@@ -34,7 +34,7 @@ export default function LoginPage() {
       }
 
       // Redirect based on user role or callbackUrl
-      if (callbackUrl !== "/") {
+      if (callbackUrl !== "/" && callbackUrl.startsWith("/") && !callbackUrl.startsWith("//")) {
         router.push(callbackUrl);
       } else if (data.user.rol === "ADMIN") {
         router.push("/admin");

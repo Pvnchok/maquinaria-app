@@ -199,7 +199,7 @@ export default async function ListingDetail({ params }: { params: Promise<{ id: 
 
             {/* Availability Calendar for Contractors */}
             {(() => {
-              const operatorUser = mockUsers.find(u => u.nombre === listing.usuario.nombre);
+              const operatorUser = mockUsers.find(u => listing.usuario.nombre.includes(u.nombre));
               const availability = operatorUser ? mockOperatorAvailability.find(a => a.operadorId === operatorUser.id) : null;
               if (!availability) return null;
               return (
