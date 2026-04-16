@@ -8,16 +8,19 @@ const JWT_SECRET = new TextEncoder().encode(
 
 const COOKIE_NAME = "session_token";
 
-const PROTECTED_PATHS = ["/admin", "/operador"];
+const ROLE_ACCESS: Record<string, string[]> = {
+  "/admin": ["ADMIN"],
+  "/operador": ["OPERADOR", "ADMIN"],
+};
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  const isProtected = PROTECTED_PATHS.some(
+  const matchedPath = Object.keys(ROLE_ACCESS).find(
     (path) => pathname === path || pathname.startsWith(`${path}/`)
   );
 
-  if (!isProtected) {
+  if (!matchedPath) {
     return NextResponse.next();
   }
 
@@ -29,9 +32,17 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Verify JWT signature and expiration
+  // Verify JWT signature, expiration, and role
   try {
-    await jwtVerify(token, JWT_SECRET);
+    const { payload } = await jwtVerify(token, JWT_SECRET);
+    const userRole = payload.rol as string | undefined;
+    const allowedRoles = ROLE_ACCESS[matchedPath];
+
+    if (!userRole || !allowedRoles.includes(userRole)) {
+      // Valid token but wrong role — redirect to home
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+
     return NextResponse.next();
   } catch {
     // Invalid or expired token — clear cookie and redirect to login

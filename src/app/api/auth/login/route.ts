@@ -27,6 +27,13 @@ export async function POST(request: Request) {
       );
     }
 
+    if (user.estado === "SUSPENDIDO") {
+      return NextResponse.json(
+        { error: "Tu cuenta está suspendida. Contacta al administrador." },
+        { status: 403 }
+      );
+    }
+
     const token = await createToken({
       userId: user.id,
       email: user.email,
