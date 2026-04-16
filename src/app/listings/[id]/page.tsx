@@ -1,8 +1,9 @@
-import { mockListings } from "@/lib/data";
+import { mockListings, mockUsers, mockOperatorAvailability } from "@/lib/data";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import AvailabilityCalendar from "@/components/AvailabilityCalendar";
 
 function buildServiceLabel(tipoServicio: string): string {
   const labels: Record<string, string> = {
@@ -195,6 +196,19 @@ export default async function ListingDetail({ params }: { params: Promise<{ id: 
                 <div><strong>Rol:</strong> {listing.usuario.rol}</div>
               </div>
             </div>
+
+            {/* Availability Calendar for Contractors */}
+            {(() => {
+              const operatorUser = mockUsers.find(u => u.nombre === listing.usuario.nombre);
+              const availability = operatorUser ? mockOperatorAvailability.find(a => a.operadorId === operatorUser.id) : null;
+              if (!availability) return null;
+              return (
+                <AvailabilityCalendar
+                  diasLibres={availability.diasLibres}
+                  operadorNombre={listing.usuario.nombre}
+                />
+              );
+            })()}
 
             <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
               <a

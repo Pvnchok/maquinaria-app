@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { mockListings, mockUsers } from "@/lib/data";
+import { mockListings, mockUsers, mockOperatorAvailability } from "@/lib/data";
 import Link from "next/link";
 
-type OperadorSection = "perfil" | "maquinas" | "listings";
+type OperadorSection = "perfil" | "maquinas" | "listings" | "disponibilidad";
 
 interface MaquinaForm {
   tipoMaquinaria: string;
@@ -170,8 +170,52 @@ export default function OperadorDashboard() {
     }
   };
 
+  // --- AVAILABILITY CALENDAR ---
+  const operatorAvailability = mockOperatorAvailability.find(a => a.operadorId === currentOperator.id);
+  const [diasLibres, setDiasLibres] = useState<Set<string>>(new Set(operatorAvailability?.diasLibres ?? []));
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() };
+  });
+
+  const toggleDia = (dateStr: string) => {
+    setDiasLibres(prev => {
+      const next = new Set(prev);
+      if (next.has(dateStr)) {
+        next.delete(dateStr);
+      } else {
+        next.add(dateStr);
+      }
+      return next;
+    });
+    addNotification("success", diasLibres.has(dateStr) ? "Día marcado como no disponible." : "Día marcado como disponible.");
+  };
+
+  const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
+  const getFirstDayOfWeek = (year: number, month: number) => {
+    const day = new Date(year, month, 1).getDay();
+    return day === 0 ? 6 : day - 1; // Monday = 0
+  };
+
+  const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+
+  const prevMonth = () => {
+    setCalendarMonth(prev => {
+      if (prev.month === 0) return { year: prev.year - 1, month: 11 };
+      return { ...prev, month: prev.month - 1 };
+    });
+  };
+
+  const nextMonth = () => {
+    setCalendarMonth(prev => {
+      if (prev.month === 11) return { year: prev.year + 1, month: 0 };
+      return { ...prev, month: prev.month + 1 };
+    });
+  };
+
   const sidebarItems: { key: OperadorSection; label: string; icon: string }[] = [
     { key: "perfil", label: "Mi Perfil", icon: "👤" },
+    { key: "disponibilidad", label: "Disponibilidad", icon: "📅" },
     { key: "maquinas", label: "Mis Máquinas", icon: "🚜" },
     { key: "listings", label: "Mis Listings", icon: "📋" },
   ];
@@ -397,6 +441,82 @@ export default function OperadorDashboard() {
                 <p style={{ marginTop: '0.5rem' }}>Agrega tu primera máquina para comenzar a publicar servicios.</p>
               </div>
             )}
+          </div>
+        )}
+
+        {/* ===== DISPONIBILIDAD ===== */}
+        {section === "disponibilidad" && (
+          <div>
+            <h1 className="admin-page-title">Mi Disponibilidad</h1>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>Marca los días que estás libre para trabajar. Los contratistas podrán ver tu disponibilidad.</p>
+
+            <div className="glass-panel" style={{ padding: '2rem' }}>
+              {/* Calendar header */}
+              <div className="cal-header">
+                <button className="cal-nav-btn" onClick={prevMonth}>&lsaquo;</button>
+                <h2 className="cal-title">{monthNames[calendarMonth.month]} {calendarMonth.year}</h2>
+                <button className="cal-nav-btn" onClick={nextMonth}>&rsaquo;</button>
+              </div>
+
+              {/* Day labels */}
+              <div className="cal-grid">
+                {["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map(d => (
+                  <div key={d} className="cal-day-label">{d}</div>
+                ))}
+              </div>
+
+              {/* Calendar days */}
+              <div className="cal-grid">
+                {Array.from({ length: getFirstDayOfWeek(calendarMonth.year, calendarMonth.month) }).map((_, i) => (
+                  <div key={`empty-${i}`} className="cal-day cal-day-empty" />
+                ))}
+                {Array.from({ length: getDaysInMonth(calendarMonth.year, calendarMonth.month) }).map((_, i) => {
+                  const day = i + 1;
+                  const dateStr = `${calendarMonth.year}-${String(calendarMonth.month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                  const isAvailable = diasLibres.has(dateStr);
+                  const today = new Date();
+                  const isToday = today.getFullYear() === calendarMonth.year && today.getMonth() === calendarMonth.month && today.getDate() === day;
+                  const isPast = new Date(dateStr) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                  return (
+                    <button
+                      key={dateStr}
+                      className={`cal-day ${isAvailable ? 'cal-day-available' : 'cal-day-unavailable'} ${isToday ? 'cal-day-today' : ''} ${isPast ? 'cal-day-past' : ''}`}
+                      onClick={() => !isPast && toggleDia(dateStr)}
+                      disabled={isPast}
+                      title={isPast ? 'Día pasado' : isAvailable ? 'Disponible — clic para quitar' : 'No disponible — clic para marcar libre'}
+                    >
+                      {day}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Legend */}
+              <div className="cal-legend">
+                <div className="cal-legend-item">
+                  <span className="cal-legend-dot cal-legend-available" />
+                  <span>Disponible</span>
+                </div>
+                <div className="cal-legend-item">
+                  <span className="cal-legend-dot cal-legend-unavailable" />
+                  <span>No disponible</span>
+                </div>
+                <div className="cal-legend-item">
+                  <span className="cal-legend-dot cal-legend-today" />
+                  <span>Hoy</span>
+                </div>
+              </div>
+
+              {/* Summary */}
+              <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(34, 197, 94, 0.05)', borderRadius: '12px', border: '1px solid rgba(34, 197, 94, 0.15)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Días libres este mes:</span>
+                  <span style={{ fontSize: '1.5rem', fontWeight: 700, color: '#22c55e' }}>
+                    {Array.from(diasLibres).filter(d => d.startsWith(`${calendarMonth.year}-${String(calendarMonth.month + 1).padStart(2, '0')}`)).length}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

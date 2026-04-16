@@ -961,7 +961,47 @@ export interface MockUser {
   claseLicencia?: string;
   poseeMaquinaria?: boolean;
   empresa?: string;
+  passwordHash?: string;
 }
+
+// Availability data for operator calendars
+export interface OperatorAvailability {
+  operadorId: string;
+  diasLibres: string[]; // ISO date strings (YYYY-MM-DD)
+}
+
+// Generate availability for demo operators
+function generateAvailability(operadorId: string, seed: number): string[] {
+  const dias: string[] = [];
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  // Generate availability for current and next 2 months
+  for (let m = 0; m < 3; m++) {
+    const targetMonth = month + m;
+    const targetYear = year + Math.floor(targetMonth / 12);
+    const actualMonth = targetMonth % 12;
+    const daysInMonth = new Date(targetYear, actualMonth + 1, 0).getDate();
+    for (let d = 1; d <= daysInMonth; d++) {
+      // Use a simple deterministic pattern based on seed
+      if ((d + seed) % 3 !== 0 && (d + seed) % 7 !== 0) {
+        const dateStr = `${targetYear}-${String(actualMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+        dias.push(dateStr);
+      }
+    }
+  }
+  return dias;
+}
+
+export const mockOperatorAvailability: OperatorAvailability[] = [
+  { operadorId: "u2", diasLibres: generateAvailability("u2", 0) },
+  { operadorId: "u3", diasLibres: generateAvailability("u3", 1) },
+  { operadorId: "u5", diasLibres: generateAvailability("u5", 2) },
+  { operadorId: "u8", diasLibres: generateAvailability("u8", 3) },
+  { operadorId: "u9", diasLibres: generateAvailability("u9", 4) },
+  { operadorId: "u11", diasLibres: generateAvailability("u11", 5) },
+  { operadorId: "u12", diasLibres: generateAvailability("u12", 6) },
+];
 
 export const mockUsers: MockUser[] = [
   { id: "u1", nombre: "Admin Principal", email: "admin@maqconnect.cl", telefono: "+56 9 1111 1111", rol: "ADMIN", estado: "ACTIVO", fechaRegistro: "2024-01-15" },

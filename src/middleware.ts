@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { jwtVerify } from "jose";
+
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET || "maqconnect-dev-secret-change-in-production"
+);
+
+const COOKIE_NAME = "session_token";
 
 const PROTECTED_PATHS = ["/admin", "/operador"];
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const isProtected = PROTECTED_PATHS.some(
@@ -14,17 +21,26 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const sessionToken =
-    request.cookies.get("session_token")?.value ??
-    request.cookies.get("next-auth.session-token")?.value;
+  const token = request.cookies.get(COOKIE_NAME)?.value;
 
-  if (!sessionToken) {
-    const loginUrl = new URL("/", request.url);
+  if (!token) {
+    const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  return NextResponse.next();
+  // Verify JWT signature and expiration
+  try {
+    await jwtVerify(token, JWT_SECRET);
+    return NextResponse.next();
+  } catch {
+    // Invalid or expired token — clear cookie and redirect to login
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("callbackUrl", pathname);
+    const response = NextResponse.redirect(loginUrl);
+    response.cookies.set(COOKIE_NAME, "", { path: "/", maxAge: 0 });
+    return response;
+  }
 }
 
 export const config = {
