@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { mockListings, mockUsers } from "@/lib/data";
 import Link from "next/link";
 
@@ -18,12 +18,39 @@ interface MaquinaForm {
 
 const emptyMaquina: MaquinaForm = { tipoMaquinaria: "", marca: "", modelo: "", year: 2024, condicion: "BUENA", tonelajeCapacidad: "", fotoUrl: "" };
 
+interface Notification {
+  id: string;
+  type: "success" | "error";
+  message: string;
+}
+
 export default function OperadorDashboard() {
   const [section, setSection] = useState<OperadorSection>("perfil");
 
   // Simulate logged-in operator (Pedro Rojas - u2)
   const currentOperator = mockUsers.find(u => u.id === "u2")!;
   const operatorListings = mockListings.filter(l => l.usuario.nombre.includes("Pedro Rojas"));
+
+  // Loading & error states
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [savingPerfil, setSavingPerfil] = useState(false);
+  const [savingMaq, setSavingMaq] = useState(false);
+  const [deletingMaqId, setDeletingMaqId] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+
+  // --- NOTIFICATIONS ---
+  const addNotification = useCallback((type: "success" | "error", message: string) => {
+    const id = `notif-${Date.now()}`;
+    setNotifications(prev => [...prev, { id, type, message }]);
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    }, 4000);
+  }, []);
+
+  const dismissNotification = useCallback((id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  }, []);
 
   // Profile
   const [perfil, setPerfil] = useState({
@@ -32,11 +59,37 @@ export default function OperadorDashboard() {
     telefono: currentOperator.telefono,
     claseLicencia: currentOperator.claseLicencia || "",
   });
-  const [perfilGuardado, setPerfilGuardado] = useState(false);
 
-  const savePerfil = () => {
-    setPerfilGuardado(true);
-    setTimeout(() => setPerfilGuardado(false), 3000);
+  // --- INITIAL DATA LOAD ---
+  const loadData = useCallback(() => {
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      // Data is already loaded from mock imports
+      setIsLoading(false);
+    } catch {
+      setLoadError("Error al cargar los datos del panel. Intente nuevamente.");
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const savePerfil = async () => {
+    if (!perfil.nombre || !perfil.email) {
+      addNotification("error", "Nombre y email son campos obligatorios.");
+      return;
+    }
+    setSavingPerfil(true);
+    try {
+      addNotification("success", "Perfil actualizado correctamente.");
+    } catch {
+      addNotification("error", "Error al guardar el perfil. Intente nuevamente.");
+    } finally {
+      setSavingPerfil(false);
+    }
   };
 
   // Machines
@@ -73,19 +126,40 @@ export default function OperadorDashboard() {
     setShowMaqModal(true);
   };
 
-  const saveMaq = () => {
-    if (!maqForm.tipoMaquinaria || !maqForm.marca) return;
-    if (editingMaqId) {
-      setMaquinas(prev => prev.map(m => m.id === editingMaqId ? { ...m, ...maqForm } : m));
-    } else {
-      setMaquinas(prev => [...prev, { id: `maq-${Date.now()}`, ...maqForm }]);
+  const saveMaq = async () => {
+    if (!maqForm.tipoMaquinaria || !maqForm.marca) {
+      addNotification("error", "Tipo de maquinaria y marca son campos obligatorios.");
+      return;
     }
-    setShowMaqModal(false);
+    setSavingMaq(true);
+    try {
+      if (editingMaqId) {
+        setMaquinas(prev => prev.map(m => m.id === editingMaqId ? { ...m, ...maqForm } : m));
+        addNotification("success", `M\u00e1quina "${maqForm.tipoMaquinaria}" actualizada correctamente.`);
+      } else {
+        setMaquinas(prev => [...prev, { id: `maq-${Date.now()}`, ...maqForm }]);
+        addNotification("success", `M\u00e1quina "${maqForm.tipoMaquinaria}" agregada correctamente.`);
+      }
+      setShowMaqModal(false);
+    } catch {
+      addNotification("error", "Error al guardar la m\u00e1quina. Intente nuevamente.");
+    } finally {
+      setSavingMaq(false);
+    }
   };
 
-  const deleteMaq = (id: string) => {
-    setMaquinas(prev => prev.filter(m => m.id !== id));
-    setConfirmDeleteMaqId(null);
+  const deleteMaq = async (id: string) => {
+    setDeletingMaqId(id);
+    try {
+      const maqName = maquinas.find(m => m.id === id)?.tipoMaquinaria || "M\u00e1quina";
+      setMaquinas(prev => prev.filter(m => m.id !== id));
+      setConfirmDeleteMaqId(null);
+      addNotification("success", `M\u00e1quina "${maqName}" eliminada correctamente.`);
+    } catch {
+      addNotification("error", "Error al eliminar la m\u00e1quina. Intente nuevamente.");
+    } finally {
+      setDeletingMaqId(null);
+    }
   };
 
   const sidebarItems: { key: OperadorSection; label: string; icon: string }[] = [
@@ -94,8 +168,64 @@ export default function OperadorDashboard() {
     { key: "listings", label: "Mis Listings", icon: "📋" },
   ];
 
+  // --- LOADING STATE ---
+  if (isLoading) {
+    return (
+      <div className="admin-layout">
+        <aside className="admin-sidebar glass-panel" style={{ borderRadius: '16px 0 0 16px' }}>
+          <div className="admin-sidebar-header">
+            <div className="skeleton skeleton-text" style={{ width: '120px', height: '24px' }} />
+            <div className="skeleton skeleton-text" style={{ width: '100px', height: '12px', marginTop: '0.5rem' }} />
+          </div>
+          <nav className="admin-nav">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="skeleton skeleton-text" style={{ height: '40px', borderRadius: '8px' }} />
+            ))}
+          </nav>
+        </aside>
+        <main className="admin-main">
+          <div className="skeleton skeleton-text" style={{ width: '150px', height: '32px', marginBottom: '1rem' }} />
+          <div className="skeleton skeleton-text" style={{ width: '300px', height: '16px', marginBottom: '2rem' }} />
+          <div className="skeleton skeleton-card" style={{ height: '300px', borderRadius: '16px' }} />
+        </main>
+      </div>
+    );
+  }
+
+  // --- ERROR STATE ---
+  if (loadError) {
+    return (
+      <div className="admin-layout">
+        <div className="admin-error-container">
+          <div className="admin-error-card glass-panel">
+            <div className="admin-error-icon">&#9888;&#65039;</div>
+            <h2 className="admin-error-title">Error al cargar el panel</h2>
+            <p className="admin-error-message">{loadError}</p>
+            <button className="btn-primary" onClick={loadData} style={{ padding: '0.75rem 2rem', width: 'auto' }}>
+              Reintentar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="admin-layout">
+      {/* Notifications */}
+      <div className="notification-container">
+        {notifications.map(notif => (
+          <div
+            key={notif.id}
+            className={`notification notification-${notif.type}`}
+            onClick={() => dismissNotification(notif.id)}
+          >
+            <span className="notification-icon">{notif.type === "success" ? "\u2713" : "\u2715"}</span>
+            <span className="notification-message">{notif.message}</span>
+          </div>
+        ))}
+      </div>
+
       {/* Sidebar */}
       <aside className="admin-sidebar glass-panel" style={{ borderRadius: '16px 0 0 16px' }}>
         <div className="admin-sidebar-header">
@@ -171,14 +301,10 @@ export default function OperadorDashboard() {
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '1.5rem' }}>
-                  <button className="btn-primary" onClick={savePerfil} style={{ padding: '0.75rem 2rem' }}>
-                    Guardar Cambios
+                  <button className="btn-primary" onClick={savePerfil} disabled={savingPerfil} style={{ padding: '0.75rem 2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                    {savingPerfil && <span className="btn-spinner" />}
+                    {savingPerfil ? "Guardando..." : "Guardar Cambios"}
                   </button>
-                  {perfilGuardado && (
-                    <span style={{ color: '#22c55e', fontWeight: 500, fontSize: '0.9rem', animation: 'fadeIn 0.3s ease' }}>
-                      ✓ Perfil actualizado correctamente
-                    </span>
-                  )}
                 </div>
               </div>
 
@@ -244,7 +370,9 @@ export default function OperadorDashboard() {
                       <button className="btn-primary" onClick={() => openEditMaq(maq)} style={{ flex: 1, padding: '0.5rem', fontSize: '0.8rem' }}>✏️ Editar</button>
                       {confirmDeleteMaqId === maq.id ? (
                         <div style={{ display: 'flex', gap: '0.25rem' }}>
-                          <button className="admin-btn-secondary" onClick={() => deleteMaq(maq.id)} style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem', background: 'rgba(239,68,68,0.2)', color: '#ef4444', borderColor: 'rgba(239,68,68,0.3)' }}>✓ Sí</button>
+                          <button className="admin-btn-secondary" onClick={() => deleteMaq(maq.id)} disabled={deletingMaqId === maq.id} style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem', background: 'rgba(239,68,68,0.2)', color: '#ef4444', borderColor: 'rgba(239,68,68,0.3)' }}>
+                            {deletingMaqId === maq.id ? <span className="btn-spinner" /> : "✓ Sí"}
+                          </button>
                           <button className="admin-btn-secondary" onClick={() => setConfirmDeleteMaqId(null)} style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem' }}>✕</button>
                         </div>
                       ) : (
@@ -380,8 +508,11 @@ export default function OperadorDashboard() {
               </div>
             </div>
             <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', justifyContent: 'flex-end' }}>
-              <button className="admin-btn-secondary" onClick={() => setShowMaqModal(false)}>Cancelar</button>
-              <button className="btn-primary" onClick={saveMaq} style={{ padding: '0.6rem 2rem' }}>Guardar</button>
+              <button className="admin-btn-secondary" onClick={() => setShowMaqModal(false)} disabled={savingMaq}>Cancelar</button>
+              <button className="btn-primary" onClick={saveMaq} disabled={savingMaq} style={{ padding: '0.6rem 2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                {savingMaq && <span className="btn-spinner" />}
+                {savingMaq ? "Guardando..." : "Guardar"}
+              </button>
             </div>
           </div>
         </div>

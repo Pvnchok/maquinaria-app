@@ -1,15 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { mockUsers, mockMessages, mockListings, type MockUser, type MockMessage, type UserRole, type UserStatus } from "@/lib/data";
 import Link from "next/link";
 
 type AdminSection = "dashboard" | "usuarios" | "listings" | "mensajes";
 
+interface Notification {
+  id: string;
+  type: "success" | "error";
+  message: string;
+}
+
 export default function AdminPanel() {
   const [section, setSection] = useState<AdminSection>("dashboard");
-  const [users, setUsers] = useState<MockUser[]>([...mockUsers]);
-  const [messages, setMessages] = useState<MockMessage[]>([...mockMessages]);
+  const [users, setUsers] = useState<MockUser[]>([]);
+  const [messages, setMessages] = useState<MockMessage[]>([]);
+
+  // Loading & error states
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [savingUser, setSavingUser] = useState(false);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const [togglingUserId, setTogglingUserId] = useState<string | null>(null);
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
   // User filters
   const [searchUser, setSearchUser] = useState("");
@@ -29,6 +44,37 @@ export default function AdminPanel() {
 
   // Delete confirm
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  // --- NOTIFICATIONS ---
+  const addNotification = useCallback((type: "success" | "error", message: string) => {
+    const id = `notif-${Date.now()}`;
+    setNotifications(prev => [...prev, { id, type, message }]);
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    }, 4000);
+  }, []);
+
+  const dismissNotification = useCallback((id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  }, []);
+
+  // --- INITIAL DATA LOAD ---
+  const loadData = useCallback(() => {
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      setUsers([...mockUsers]);
+      setMessages([...mockMessages]);
+      setIsLoading(false);
+    } catch {
+      setLoadError("Error al cargar los datos del panel. Intente nuevamente.");
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   // --- STATS ---
   const totalUsers = users.length;
@@ -56,51 +102,93 @@ export default function AdminPanel() {
     setShowUserModal(true);
   };
 
-  const saveUser = () => {
-    if (!userForm.nombre || !userForm.email) return;
-    if (editingUser) {
-      setUsers(prev => prev.map(u => u.id === editingUser.id ? { ...u, ...userForm } as MockUser : u));
-    } else {
-      const newUser: MockUser = {
-        id: "u" + (users.length + 1),
-        nombre: userForm.nombre || "",
-        email: userForm.email || "",
-        telefono: userForm.telefono || "",
-        rol: (userForm.rol as UserRole) || "OPERADOR",
-        estado: (userForm.estado as UserStatus) || "ACTIVO",
-        fechaRegistro: userForm.fechaRegistro || new Date().toISOString().split("T")[0],
-        claseLicencia: userForm.claseLicencia,
-        empresa: userForm.empresa,
-      };
-      setUsers(prev => [...prev, newUser]);
+  const saveUser = async () => {
+    if (!userForm.nombre || !userForm.email) {
+      addNotification("error", "Nombre y email son campos obligatorios.");
+      return;
     }
-    setShowUserModal(false);
+    setSavingUser(true);
+    try {
+      if (editingUser) {
+        setUsers(prev => prev.map(u => u.id === editingUser.id ? { ...u, ...userForm } as MockUser : u));
+        addNotification("success", `Usuario "${userForm.nombre}" actualizado correctamente.`);
+      } else {
+        const newUser: MockUser = {
+          id: "u" + (users.length + 1),
+          nombre: userForm.nombre || "",
+          email: userForm.email || "",
+          telefono: userForm.telefono || "",
+          rol: (userForm.rol as UserRole) || "OPERADOR",
+          estado: (userForm.estado as UserStatus) || "ACTIVO",
+          fechaRegistro: userForm.fechaRegistro || new Date().toISOString().split("T")[0],
+          claseLicencia: userForm.claseLicencia,
+          empresa: userForm.empresa,
+        };
+        setUsers(prev => [...prev, newUser]);
+        addNotification("success", `Usuario "${newUser.nombre}" creado correctamente.`);
+      }
+      setShowUserModal(false);
+    } catch {
+      addNotification("error", "Error al guardar el usuario. Intente nuevamente.");
+    } finally {
+      setSavingUser(false);
+    }
   };
 
-  const deleteUser = (id: string) => {
-    setUsers(prev => prev.filter(u => u.id !== id));
-    setConfirmDeleteId(null);
+  const deleteUser = async (id: string) => {
+    setDeletingUserId(id);
+    try {
+      const userName = users.find(u => u.id === id)?.nombre || "Usuario";
+      setUsers(prev => prev.filter(u => u.id !== id));
+      setConfirmDeleteId(null);
+      addNotification("success", `Usuario "${userName}" eliminado correctamente.`);
+    } catch {
+      addNotification("error", "Error al eliminar el usuario. Intente nuevamente.");
+    } finally {
+      setDeletingUserId(null);
+    }
   };
 
-  const toggleUserStatus = (id: string) => {
-    setUsers(prev => prev.map(u => u.id === id ? { ...u, estado: u.estado === "ACTIVO" ? "SUSPENDIDO" as UserStatus : "ACTIVO" as UserStatus } : u));
+  const toggleUserStatus = async (id: string) => {
+    setTogglingUserId(id);
+    try {
+      const user = users.find(u => u.id === id);
+      const newStatus = user?.estado === "ACTIVO" ? "SUSPENDIDO" : "ACTIVO";
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, estado: newStatus as UserStatus } : u));
+      addNotification("success", `Usuario "${user?.nombre}" ${newStatus === "ACTIVO" ? "activado" : "suspendido"}.`);
+    } catch {
+      addNotification("error", "Error al cambiar el estado del usuario.");
+    } finally {
+      setTogglingUserId(null);
+    }
   };
 
   // --- MESSAGES ---
-  const sendMessage = () => {
-    if (!msgForm.destinatarioId || !msgForm.asunto || !msgForm.contenido) return;
-    const newMsg: MockMessage = {
-      id: "m" + (messages.length + 1),
-      remitenteId: "u1",
-      destinatarioId: msgForm.destinatarioId,
-      asunto: msgForm.asunto,
-      contenido: msgForm.contenido,
-      fecha: new Date().toISOString(),
-      leido: false,
-    };
-    setMessages(prev => [newMsg, ...prev]);
-    setMsgForm({ destinatarioId: "", asunto: "", contenido: "" });
-    setShowMsgModal(false);
+  const sendMessage = async () => {
+    if (!msgForm.destinatarioId || !msgForm.asunto || !msgForm.contenido) {
+      addNotification("error", "Todos los campos del mensaje son obligatorios.");
+      return;
+    }
+    setSendingMessage(true);
+    try {
+      const newMsg: MockMessage = {
+        id: "m" + (messages.length + 1),
+        remitenteId: "u1",
+        destinatarioId: msgForm.destinatarioId,
+        asunto: msgForm.asunto,
+        contenido: msgForm.contenido,
+        fecha: new Date().toISOString(),
+        leido: false,
+      };
+      setMessages(prev => [newMsg, ...prev]);
+      setMsgForm({ destinatarioId: "", asunto: "", contenido: "" });
+      setShowMsgModal(false);
+      addNotification("success", "Mensaje enviado correctamente.");
+    } catch {
+      addNotification("error", "Error al enviar el mensaje. Intente nuevamente.");
+    } finally {
+      setSendingMessage(false);
+    }
   };
 
   const getUserName = (id: string) => users.find(u => u.id === id)?.nombre || "Desconocido";
@@ -112,8 +200,69 @@ export default function AdminPanel() {
     { key: "mensajes", label: "Mensajes", icon: "✉️" },
   ];
 
+  // --- LOADING STATE ---
+  if (isLoading) {
+    return (
+      <div className="admin-layout">
+        <aside className="admin-sidebar glass-panel" style={{ borderRadius: '16px 0 0 16px' }}>
+          <div className="admin-sidebar-header">
+            <div className="skeleton skeleton-text" style={{ width: '120px', height: '24px' }} />
+            <div className="skeleton skeleton-text" style={{ width: '80px', height: '12px', marginTop: '0.5rem' }} />
+          </div>
+          <nav className="admin-nav">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="skeleton skeleton-text" style={{ height: '40px', borderRadius: '8px' }} />
+            ))}
+          </nav>
+        </aside>
+        <main className="admin-main">
+          <div className="skeleton skeleton-text" style={{ width: '200px', height: '32px', marginBottom: '1rem' }} />
+          <div className="skeleton skeleton-text" style={{ width: '350px', height: '16px', marginBottom: '2rem' }} />
+          <div className="admin-stats-grid">
+            {[1, 2, 3, 4, 5].map(i => (
+              <div key={i} className="skeleton skeleton-card" style={{ height: '90px', borderRadius: '16px' }} />
+            ))}
+          </div>
+          <div className="skeleton skeleton-card" style={{ height: '300px', borderRadius: '16px', marginTop: '2rem' }} />
+        </main>
+      </div>
+    );
+  }
+
+  // --- ERROR STATE ---
+  if (loadError) {
+    return (
+      <div className="admin-layout">
+        <div className="admin-error-container">
+          <div className="admin-error-card glass-panel">
+            <div className="admin-error-icon">&#9888;&#65039;</div>
+            <h2 className="admin-error-title">Error al cargar el panel</h2>
+            <p className="admin-error-message">{loadError}</p>
+            <button className="btn-primary" onClick={loadData} style={{ padding: '0.75rem 2rem', width: 'auto' }}>
+              Reintentar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="admin-layout">
+      {/* Notifications */}
+      <div className="notification-container">
+        {notifications.map(notif => (
+          <div
+            key={notif.id}
+            className={`notification notification-${notif.type}`}
+            onClick={() => dismissNotification(notif.id)}
+          >
+            <span className="notification-icon">{notif.type === "success" ? "\u2713" : "\u2715"}</span>
+            <span className="notification-message">{notif.message}</span>
+          </div>
+        ))}
+      </div>
+
       {/* Sidebar */}
       <aside className="admin-sidebar glass-panel" style={{ borderRadius: '16px 0 0 16px' }}>
         <div className="admin-sidebar-header">
@@ -276,12 +425,24 @@ export default function AdminPanel() {
                       <td>
                         <div className="admin-actions">
                           <button className="admin-action-btn edit" onClick={() => openEditUser(u)} title="Editar">✏️</button>
-                          <button className="admin-action-btn toggle" onClick={() => toggleUserStatus(u.id)} title={u.estado === "ACTIVO" ? "Suspender" : "Activar"}>
-                            {u.estado === "ACTIVO" ? "⏸️" : "▶️"}
+                          <button
+                            className="admin-action-btn toggle"
+                            onClick={() => toggleUserStatus(u.id)}
+                            title={u.estado === "ACTIVO" ? "Suspender" : "Activar"}
+                            disabled={togglingUserId === u.id}
+                          >
+                            {togglingUserId === u.id ? <span className="btn-spinner" /> : (u.estado === "ACTIVO" ? "⏸️" : "▶️")}
                           </button>
                           {confirmDeleteId === u.id ? (
                             <span style={{ display: 'flex', gap: '0.25rem' }}>
-                              <button className="admin-action-btn delete" onClick={() => deleteUser(u.id)} title="Confirmar">✓</button>
+                              <button
+                                className="admin-action-btn delete"
+                                onClick={() => deleteUser(u.id)}
+                                title="Confirmar"
+                                disabled={deletingUserId === u.id}
+                              >
+                                {deletingUserId === u.id ? <span className="btn-spinner" /> : "✓"}
+                              </button>
                               <button className="admin-action-btn" onClick={() => setConfirmDeleteId(null)} title="Cancelar">✕</button>
                             </span>
                           ) : (
@@ -439,8 +600,11 @@ export default function AdminPanel() {
               )}
             </div>
             <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', justifyContent: 'flex-end' }}>
-              <button className="admin-btn-secondary" onClick={() => setShowUserModal(false)}>Cancelar</button>
-              <button className="btn-primary" onClick={saveUser} style={{ padding: '0.6rem 2rem' }}>Guardar</button>
+              <button className="admin-btn-secondary" onClick={() => setShowUserModal(false)} disabled={savingUser}>Cancelar</button>
+              <button className="btn-primary" onClick={saveUser} disabled={savingUser} style={{ padding: '0.6rem 2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                {savingUser && <span className="btn-spinner" />}
+                {savingUser ? "Guardando..." : "Guardar"}
+              </button>
             </div>
           </div>
         </div>
@@ -471,8 +635,11 @@ export default function AdminPanel() {
               </div>
             </div>
             <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', justifyContent: 'flex-end' }}>
-              <button className="admin-btn-secondary" onClick={() => setShowMsgModal(false)}>Cancelar</button>
-              <button className="btn-primary" onClick={sendMessage} style={{ padding: '0.6rem 2rem' }}>Enviar</button>
+              <button className="admin-btn-secondary" onClick={() => setShowMsgModal(false)} disabled={sendingMessage}>Cancelar</button>
+              <button className="btn-primary" onClick={sendMessage} disabled={sendingMessage} style={{ padding: '0.6rem 2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                {sendingMessage && <span className="btn-spinner" />}
+                {sendingMessage ? "Enviando..." : "Enviar"}
+              </button>
             </div>
           </div>
         </div>
