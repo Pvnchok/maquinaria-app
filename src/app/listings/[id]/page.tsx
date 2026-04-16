@@ -4,6 +4,44 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
+function buildServiceLabel(tipoServicio: string): string {
+  const labels: Record<string, string> = {
+    ARRIENDO_CON_OPERADOR: "Arriendo con operador",
+    ARRIENDO_SIN_OPERADOR: "Arriendo sin operador",
+    SOLO_SERVICIO_OPERADOR: "Servicio de operador",
+  };
+  return labels[tipoServicio] ?? tipoServicio.replace(/_/g, " ").toLowerCase();
+}
+
+function buildListingDescription(listing: (typeof mockListings)[number]): string {
+  const maq = listing.maquinaria;
+  const precio = `$${listing.precioReferencial.toLocaleString("es-CL")}`;
+  const unidad = listing.tipoServicio === "SOLO_SERVICIO_OPERADOR" ? "hora" : "día";
+  const ubicacion = `${listing.ciudadDisponible}, ${listing.regionDisponible}`;
+  const servicio = buildServiceLabel(listing.tipoServicio);
+
+  const parts: string[] = [];
+
+  if (maq) {
+    parts.push(
+      `${maq.tipoMaquinaria} ${maq.marca} ${maq.modelo} (${maq.year}) en condición ${maq.condicion.toLowerCase()} disponible para arriendo en ${ubicacion}.`
+    );
+    parts.push(`Capacidad: ${maq.tonelajeCapacidad}.`);
+  } else {
+    parts.push(
+      `${listing.usuario.nombre} ofrece servicio de operador en ${ubicacion}.`
+    );
+    if (listing.usuario.claseLicencia) {
+      parts.push(`Licencia ${listing.usuario.claseLicencia}.`);
+    }
+  }
+
+  parts.push(`${servicio} a ${precio}/${unidad}.`);
+  parts.push("Contacta al proveedor en MaqConnect.");
+
+  return parts.join(" ");
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -13,28 +51,52 @@ export async function generateMetadata({
   const listing = mockListings.find((l) => l.id === id);
 
   if (!listing) {
-    return { title: "Anuncio no encontrado" };
+    return {
+      title: "Anuncio no encontrado",
+      description: "El anuncio que buscas no existe o fue eliminado de MaqConnect.",
+    };
   }
 
   const titulo = listing.maquinaria
     ? `${listing.maquinaria.tipoMaquinaria} ${listing.maquinaria.marca} ${listing.maquinaria.modelo}`
     : `Operador: ${listing.usuario.nombre}`;
 
-  const precio = `$${listing.precioReferencial.toLocaleString("es-CL")}`;
-  const unidad = listing.tipoServicio === "SOLO_SERVICIO_OPERADOR" ? "hora" : "día";
   const ubicacion = `${listing.ciudadDisponible}, ${listing.regionDisponible}`;
-
   const title = `${titulo} – Arriendo en ${listing.regionDisponible}`;
-  const description = `${titulo} disponible en ${ubicacion}. Precio: ${precio}/${unidad}. ${listing.maquinaria ? `Año ${listing.maquinaria.year}, condición ${listing.maquinaria.condicion}.` : ""} Contacta al proveedor en MaqConnect.`;
+  const description = buildListingDescription(listing);
+  const canonicalUrl = `https://maqconnect.cl/listings/${id}`;
+
+  const keywords = [
+    "arriendo maquinaria",
+    listing.maquinaria?.tipoMaquinaria,
+    listing.maquinaria?.marca,
+    listing.ciudadDisponible,
+    listing.regionDisponible,
+    buildServiceLabel(listing.tipoServicio),
+  ].filter(Boolean) as string[];
 
   return {
     title,
     description,
+    keywords,
+    alternates: { canonical: canonicalUrl },
     openGraph: {
       title,
       description,
+      url: canonicalUrl,
+      type: "article",
+      locale: "es_CL",
+      siteName: "MaqConnect",
       ...(listing.maquinaria?.fotoUrl
-        ? { images: [{ url: listing.maquinaria.fotoUrl, alt: titulo }] }
+        ? { images: [{ url: listing.maquinaria.fotoUrl, alt: titulo, width: 800, height: 400 }] }
+        : {}),
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${titulo} – ${ubicacion}`,
+      description,
+      ...(listing.maquinaria?.fotoUrl
+        ? { images: [listing.maquinaria.fotoUrl] }
         : {}),
     },
   };
