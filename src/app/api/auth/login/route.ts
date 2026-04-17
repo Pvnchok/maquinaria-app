@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createToken, COOKIE_NAME } from "@/lib/auth";
-import { mockUsers } from "@/lib/data";
+import { getUserByEmail } from "@/lib/db";
 
 // Demo password for all mock users (in production, verify against bcrypt hash in DB)
 const DEMO_PASSWORD = "demo123";
@@ -16,9 +16,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const user = mockUsers.find(
-      (u) => u.email.toLowerCase() === email.toLowerCase()
-    );
+    const user = await getUserByEmail(email);
 
     if (!user || password !== DEMO_PASSWORD) {
       return NextResponse.json(

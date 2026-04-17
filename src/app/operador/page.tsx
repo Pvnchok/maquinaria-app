@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { mockListings, mockUsers, mockOperatorAvailability } from "@/lib/data";
+import type { MockUser } from "@/lib/data";
+import type { Listing } from "@/lib/db";
 import Link from "next/link";
 
 type OperadorSection = "perfil" | "maquinas" | "listings" | "disponibilidad";
@@ -24,12 +25,14 @@ interface Notification {
   message: string;
 }
 
+type MaquinaItem = { id: string } & NonNullable<Listing["maquinaria"]>;
+
 export default function OperadorDashboard() {
   const [section, setSection] = useState<OperadorSection>("perfil");
 
-  // Simulate logged-in operator (Pedro Rojas - u2)
-  const currentOperator = mockUsers.find(u => u.id === "u2")!;
-  const operatorListings = mockListings.filter(l => l.usuario.nombre.includes("Pedro Rojas"));
+  // Simulated logged-in operator (Pedro Rojas - u2) — poblado tras fetch
+  const [currentOperator, setCurrentOperator] = useState<MockUser | null>(null);
+  const [operatorListings, setOperatorListings] = useState<Listing[]>([]);
 
   // Loading & error states
   const [isLoading, setIsLoading] = useState(true);
@@ -58,18 +61,61 @@ export default function OperadorDashboard() {
 
   // Profile
   const [perfil, setPerfil] = useState({
-    nombre: currentOperator.nombre,
-    email: currentOperator.email,
-    telefono: currentOperator.telefono,
-    claseLicencia: currentOperator.claseLicencia || "",
+    nombre: "",
+    email: "",
+    telefono: "",
+    claseLicencia: "",
   });
 
+  // Machines
+  const [maquinas, setMaquinas] = useState<MaquinaItem[]>([]);
+  const [diasLibres, setDiasLibres] = useState<Set<string>>(new Set());
+
   // --- INITIAL DATA LOAD ---
-  const loadData = useCallback(() => {
+  const loadData = useCallback(async () => {
     setIsLoading(true);
     setLoadError(null);
     try {
-      // Data is already loaded from mock imports
+      const [usersRes, listingsRes, availabilityRes] = await Promise.all([
+        fetch("/api/db/users", { cache: "no-store" }),
+        fetch("/api/db/listings", { cache: "no-store" }),
+        fetch("/api/db/operator-availability?operadorId=u2", { cache: "no-store" }),
+      ]);
+      if (!usersRes.ok || !listingsRes.ok || !availabilityRes.ok) {
+        throw new Error("Error al cargar los datos del panel.");
+      }
+      const [usersJson, listingsJson, availabilityJson] = await Promise.all([
+        usersRes.json(),
+        listingsRes.json(),
+        availabilityRes.json(),
+      ]);
+
+      const users: MockUser[] = usersJson.users ?? [];
+      const listings: Listing[] = listingsJson.listings ?? [];
+      const op = users.find((u) => u.id === "u2") ?? null;
+      const opListings = listings.filter((l) =>
+        l.usuario.nombre.includes("Pedro Rojas")
+      );
+
+      setCurrentOperator(op);
+      setOperatorListings(opListings);
+      if (op) {
+        setPerfil({
+          nombre: op.nombre,
+          email: op.email,
+          telefono: op.telefono,
+          claseLicencia: op.claseLicencia || "",
+        });
+      }
+
+      const initialMaquinas: MaquinaItem[] = opListings
+        .filter((l) => l.maquinaria)
+        .map((l, idx) => ({ id: `maq-${idx}`, ...l.maquinaria! }));
+      setMaquinas(initialMaquinas);
+
+      const availability = availabilityJson.availability;
+      setDiasLibres(new Set(availability?.diasLibres ?? []));
+
       setIsLoading(false);
     } catch {
       setLoadError("Error al cargar los datos del panel. Intente nuevamente.");
@@ -95,16 +141,6 @@ export default function OperadorDashboard() {
       setSavingPerfil(false);
     }
   };
-
-  // Machines
-  const initialMaquinas = operatorListings
-    .filter(l => l.maquinaria)
-    .map((l, idx) => ({
-      id: `maq-${idx}`,
-      ...l.maquinaria!,
-    }));
-  
-  const [maquinas, setMaquinas] = useState(initialMaquinas);
   const [showMaqModal, setShowMaqModal] = useState(false);
   const [editingMaqId, setEditingMaqId] = useState<string | null>(null);
   const [maqForm, setMaqForm] = useState<MaquinaForm>(emptyMaquina);
@@ -175,8 +211,6 @@ export default function OperadorDashboard() {
   };
 
   // --- AVAILABILITY CALENDAR ---
-  const operatorAvailability = mockOperatorAvailability.find(a => a.operadorId === currentOperator.id);
-  const [diasLibres, setDiasLibres] = useState<Set<string>>(new Set(operatorAvailability?.diasLibres ?? []));
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth() };
@@ -330,7 +364,7 @@ export default function OperadorDashboard() {
                   <div>
                     <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>{perfil.nombre}</h2>
                     <span className="admin-role-badge role-operador">OPERADOR</span>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>Miembro desde {currentOperator.fechaRegistro}</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>Miembro desde {currentOperator?.fechaRegistro ?? "—"}</div>
                   </div>
                 </div>
 

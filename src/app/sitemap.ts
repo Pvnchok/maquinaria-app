@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
-import { mockListings } from "@/lib/data";
+import { getListings } from "@/lib/db";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = "https://maqconnect.cl";
 
   const staticRoutes: MetadataRoute.Sitemap = [
@@ -13,7 +13,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   ];
 
-  const listingRoutes: MetadataRoute.Sitemap = mockListings.map((listing) => ({
+  const listings = await getListings();
+  const listingRoutes: MetadataRoute.Sitemap = listings.map((listing) => ({
     url: `${baseUrl}/listings/${listing.id}`,
     lastModified: new Date(),
     changeFrequency: "weekly",
