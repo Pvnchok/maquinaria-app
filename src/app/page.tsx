@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import HomeClient from "@/components/HomeClient";
+import { getListings } from "@/lib/db";
 
 export const metadata: Metadata = {
   title: "Búsqueda de Maquinaria Pesada",
@@ -12,6 +13,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default function Home() {
-  return <HomeClient />;
+export default async function Home() {
+  const listings = await getListings();
+  return <HomeClient listings={listings} />;
 }

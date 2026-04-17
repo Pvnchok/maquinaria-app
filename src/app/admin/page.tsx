@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { mockUsers, mockMessages, mockListings, type MockUser, type MockMessage, type UserRole, type UserStatus } from "@/lib/data";
+import { type MockUser, type MockMessage, type UserRole, type UserStatus } from "@/lib/data";
+import type { Listing } from "@/lib/db";
 import Link from "next/link";
 
 type AdminSection = "dashboard" | "usuarios" | "listings" | "mensajes";
@@ -16,6 +17,7 @@ export default function AdminPanel() {
   const [section, setSection] = useState<AdminSection>("dashboard");
   const [users, setUsers] = useState<MockUser[]>([]);
   const [messages, setMessages] = useState<MockMessage[]>([]);
+  const [listings, setListings] = useState<Listing[]>([]);
 
   // Loading & error states
   const [isLoading, setIsLoading] = useState(true);
@@ -59,12 +61,26 @@ export default function AdminPanel() {
   }, []);
 
   // --- INITIAL DATA LOAD ---
-  const loadData = useCallback(() => {
+  const loadData = useCallback(async () => {
     setIsLoading(true);
     setLoadError(null);
     try {
-      setUsers([...mockUsers]);
-      setMessages([...mockMessages]);
+      const [usersRes, messagesRes, listingsRes] = await Promise.all([
+        fetch("/api/db/users", { cache: "no-store" }),
+        fetch("/api/db/messages", { cache: "no-store" }),
+        fetch("/api/db/listings", { cache: "no-store" }),
+      ]);
+      if (!usersRes.ok || !messagesRes.ok || !listingsRes.ok) {
+        throw new Error("Error al cargar los datos del panel.");
+      }
+      const [usersJson, messagesJson, listingsJson] = await Promise.all([
+        usersRes.json(),
+        messagesRes.json(),
+        listingsRes.json(),
+      ]);
+      setUsers(usersJson.users ?? []);
+      setMessages(messagesJson.messages ?? []);
+      setListings(listingsJson.listings ?? []);
       setIsLoading(false);
     } catch {
       setLoadError("Error al cargar los datos del panel. Intente nuevamente.");
@@ -80,7 +96,7 @@ export default function AdminPanel() {
   const totalUsers = users.length;
   const operadoresActivos = users.filter(u => u.rol === "OPERADOR" && u.estado === "ACTIVO").length;
   const contratistasActivos = users.filter(u => u.rol === "CONTRATISTA" && u.estado === "ACTIVO").length;
-  const totalListings = mockListings.length;
+  const totalListings = listings.length;
   const msgNoLeidos = messages.filter(m => !m.leido).length;
 
   // --- USER CRUD ---
@@ -498,7 +514,7 @@ export default function AdminPanel() {
                   </tr>
                 </thead>
                 <tbody>
-                  {mockListings.map(l => (
+                  {listings.map(l => (
                     <tr key={l.id}>
                       <td style={{ fontWeight: 500, color: 'var(--primary)' }}>#{l.id}</td>
                       <td>

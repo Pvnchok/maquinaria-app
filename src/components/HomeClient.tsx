@@ -1,11 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { mockListings } from "@/lib/data";
+import type { Listing } from "@/lib/db";
 import Link from "next/link";
 import Image from "next/image";
 
-export default function HomeClient() {
+interface HomeClientProps {
+  listings: Listing[];
+}
+
+export default function HomeClient({ listings }: HomeClientProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterServicio, setFilterServicio] = useState("");
   const [filterCategoria, setFilterCategoria] = useState("");
@@ -16,7 +20,7 @@ export default function HomeClient() {
   const [filterLicencia, setFilterLicencia] = useState("");
   const [filterFuncion, setFilterFuncion] = useState("");
 
-  const categoriasUnicas = Array.from(new Set(mockListings.map(l => l.maquinaria?.tipoMaquinaria).filter(Boolean))) as string[];
+  const categoriasUnicas = Array.from(new Set(listings.map(l => l.maquinaria?.tipoMaquinaria).filter(Boolean))) as string[];
 
   const getFuncion = (tipo: string | undefined) => {
     if (!tipo) return "Otro";
@@ -30,12 +34,12 @@ export default function HomeClient() {
     return "Uso General";
   };
 
-  const funcionesUnicas = Array.from(new Set(mockListings.map(l => getFuncion(l.maquinaria?.tipoMaquinaria)).filter(Boolean))) as string[];
-  const regionesUnicas = Array.from(new Set(mockListings.map(l => l.regionDisponible))) as string[];
-  const licenciasUnicas = Array.from(new Set(mockListings.map(l => l.usuario.claseLicencia).filter(Boolean))) as string[];
-  const condicionesUnicas = Array.from(new Set(mockListings.map(l => l.maquinaria?.condicion).filter(Boolean))) as string[];
+  const funcionesUnicas = Array.from(new Set(listings.map(l => getFuncion(l.maquinaria?.tipoMaquinaria)).filter(Boolean))) as string[];
+  const regionesUnicas = Array.from(new Set(listings.map(l => l.regionDisponible))) as string[];
+  const licenciasUnicas = Array.from(new Set(listings.map(l => l.usuario.claseLicencia).filter(Boolean))) as string[];
+  const condicionesUnicas = Array.from(new Set(listings.map(l => l.maquinaria?.condicion).filter(Boolean))) as string[];
 
-  const filteredListings = mockListings.filter((l) => {
+  const filteredListings = listings.filter((l) => {
     const textToSearch = [
       l.maquinaria?.tipoMaquinaria,
       l.maquinaria?.marca,

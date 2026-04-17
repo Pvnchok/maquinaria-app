@@ -1,4 +1,4 @@
-import { mockListings, mockUsers, mockOperatorAvailability } from "@/lib/data";
+import { getListingById, getUsers, getOperatorAvailability, type Listing } from "@/lib/db";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
@@ -14,7 +14,7 @@ function buildServiceLabel(tipoServicio: string): string {
   return labels[tipoServicio] ?? tipoServicio.replace(/_/g, " ").toLowerCase();
 }
 
-function buildListingDescription(listing: (typeof mockListings)[number]): string {
+function buildListingDescription(listing: Listing): string {
   const maq = listing.maquinaria;
   const precio = `$${listing.precioReferencial.toLocaleString("es-CL")}`;
   const unidad = listing.tipoServicio === "SOLO_SERVICIO_OPERADOR" ? "hora" : "día";
@@ -49,7 +49,7 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const listing = mockListings.find((l) => l.id === id);
+  const listing = await getListingById(id);
 
   if (!listing) {
     return {
@@ -105,11 +105,15 @@ export async function generateMetadata({
 
 export default async function ListingDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const listing = mockListings.find((l) => l.id === id);
+  const listing = await getListingById(id);
 
   if (!listing) {
     notFound();
   }
+
+  const users = await getUsers();
+  const operatorUser = users.find((u) => listing.usuario.nombre.includes(u.nombre));
+  const availability = operatorUser ? await getOperatorAvailability(operatorUser.id) : null;
 
   const titulo = listing.maquinaria
     ? `${listing.maquinaria.tipoMaquinaria} ${listing.maquinaria.marca} ${listing.maquinaria.modelo}`
@@ -198,17 +202,12 @@ export default async function ListingDetail({ params }: { params: Promise<{ id: 
             </div>
 
             {/* Availability Calendar for Contractors */}
-            {(() => {
-              const operatorUser = mockUsers.find(u => listing.usuario.nombre.includes(u.nombre));
-              const availability = operatorUser ? mockOperatorAvailability.find(a => a.operadorId === operatorUser.id) : null;
-              if (!availability) return null;
-              return (
-                <AvailabilityCalendar
-                  diasLibres={availability.diasLibres}
-                  operadorNombre={listing.usuario.nombre}
-                />
-              );
-            })()}
+            {availability && (
+              <AvailabilityCalendar
+                diasLibres={availability.diasLibres}
+                operadorNombre={listing.usuario.nombre}
+              />
+            )}
 
             <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
               <a
